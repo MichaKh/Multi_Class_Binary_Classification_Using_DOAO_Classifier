@@ -4,17 +4,34 @@ import numpy as np
 from sklearn import tree
 from sklearn.model_selection import cross_val_score
 from sklearn.naive_bayes import MultinomialNB
-from sklearn.preprocessing import LabelEncoder
 
+from DataLoader import encode_categorical_features
 
-# from operator import itemgetter
+"""
+Kang, Seokho, Sungzoon Cho, and Pilsung Kang. "Constructing a multi-class classifier using one-against-one approach with
+ different binary classifiers." Neurocomputing 149 (2015): 677-682.‏
+ 
+The Diversified One-Against-One (DOAO) classifier finds the best classification algorithm for each class pair when
+applying the one-against-one approach to multi-class classification problems.
 
+Procedure DOAO:
+1: C <- Init classifier set
+2: For each class pair (i, j) do:
+    2.1: Init the set of datapoints whose class labels are i or j
+    2.2: Train cnadidate classifiers, each of which is trained using a different algorithm.
+    2.3: Obtain validation error for each candidate classifier
+    2.4: cl <- Find the calassifier that corresponds to the minimum valdation error.
+    2.5  Add cl to the classifiers set C
+3:	end procedure
+"""
 
-#  [2, 3, 5, , , , ]
-# [yellow, yellow, blue, green, blue]
-# [yellow, blue, green]
 
 def build_pair_classifiers(data_set):
+    """
+    Build pair classifiers with each pair of class labels
+    :param data_set: Data points
+    :return: Set of pair classifiers
+    """
     classifiers_dict = get_classifiers()
     class_labels = list(data_set.iloc[:, -1].unique())
     domains = len(class_labels)
@@ -28,8 +45,14 @@ def build_pair_classifiers(data_set):
     return pair_classifiers_set
 
 
-# public
 def classify_new_instance(instance, pair_classifiers):
+    """
+    Classify new test instance using each of the pair classifiers.
+    The classification corresponds to the majority vote of the classifiers.
+    :param instance: Instance to be classified
+    :param pair_classifiers: Set of pair classifiers
+    :return: Class label
+    """
     list_votes = []
     instance = np.array(instance)[:-1].reshape(1, -1)
     for classifier in pair_classifiers:
@@ -48,23 +71,26 @@ def get_classifiers():
     return classifiers
 
 
-'''
-choose only the instances which classification is c1 or c2
-'''
-
-
 def instances_selection(c1, c2, data_set):
+    """
+    choose only the instances which classification is c1 or c2
+    :param c1: First class label
+    :param c2: Second class label
+    :param data_set: Data points
+    :return: Slices data points
+    """
     class_column = data_set.columns[-1]
     res = data_set.loc[data_set[class_column].isin([c1, c2])]
     return res
 
 
-'''
-train m models form classifiers_set of size m on dataset data_set
-'''
-
-
-def build_subset_pair_classifiers(data_set, classifiers_dict, eval_function='accuracy'):
+def build_subset_pair_classifiers(data_set, classifiers_dict):
+    """
+    Train m models form classifiers_set of size m on dataset data_set
+    :param data_set: Data points
+    :param classifiers_dict: dict: {classifier_name: classifier_instance}
+    :return:
+    """
     classifiers_model_dict = {}
     X = data_set.iloc[:, :-1]
     y = data_set.iloc[:, -1]
@@ -76,22 +102,12 @@ def build_subset_pair_classifiers(data_set, classifiers_dict, eval_function='acc
     return classifiers_model_dict
 
 
-def encode_categorical_features(X):
-    encoded_X = X.copy()
-    le = LabelEncoder()
-    for col in encoded_X.columns:
-        if encoded_X[col].dtype not in [np.float64, np.int64]:  # numeric
-            encoded_X[col] = le.fit_transform(X[col])
-    return encoded_X
-
-
-'''
-choose the best classifer based on accuracy from pair_classifiers which contain m trained models
-'''
-
-
-# ("tree")-> (model, score)
 def choose_best_classifier(pair_classifiers):
+    """
+    choose the best classifer based on accuracy from pair_classifiers which contain m trained models
+    :param pair_classifiers: Set of pair classifiers
+    :return: Classification accuracy dict: {classifier_name: accuracy}
+    """
     sorted_dict = sorted(pair_classifiers.items(), key=lambda x: x[1][1], reverse=True)
     name, model_score = list(OrderedDict(sorted_dict).items())[0]
     return name, model_score[0]
